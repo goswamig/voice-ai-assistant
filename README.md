@@ -1,16 +1,14 @@
-# Install dependencies:
-pip install sounddevice numpy pydub requests openai python-dotenv
+# Voice AI Assistant
 
-# Get API keys:
+## Get API Keys:
 
-AssemblyAI (Free tier available)
-OpenAI
-ElevenLabs (Free tier available)
+- [AssemblyAI](https://www.assemblyai.com/) (Free tier available)
+- [OpenAI](https://platform.openai.com/docs/overview)
+- [ElevenLabs](https://elevenlabs.io/) (Free tier available)
 
-# Set environment variables:
+## Set Environment Variables:
+
+```sh
 export ASSEMBLYAI_API_KEY='your_key'
 export OPENAI_API_KEY='your_key'
 export ELEVENLABS_API_KEY='your_key'
-
-# Run 
-python assistant.py# voice-ai-assistant
