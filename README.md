@@ -14,7 +14,7 @@ export OPENAI_API_KEY='your_key'
 export ELEVENLABS_API_KEY='your_key'
 ```
 
-### `requirements.txt`  
+### Install Required libraries 
 ```sh
 pip install -r requirements.txt
 ```
