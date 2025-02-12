@@ -12,3 +12,8 @@
 export ASSEMBLYAI_API_KEY='your_key'
 export OPENAI_API_KEY='your_key'
 export ELEVENLABS_API_KEY='your_key'
+
+
+### `requirements.txt`  
+```sh
+pip install -r requirements.txt
