@@ -1,5 +1,9 @@
 # Voice AI Assistant
 
+## TODO 
+### Make it interactive 
+### Make it work in ur own voice
+
 ## Get API Keys:
 
 - [AssemblyAI](https://www.assemblyai.com/) (Free tier available)

@@ -50,7 +50,7 @@ def generate_response(prompt):
     print(cmd)
     sys.stdout.flush()
     try:
-        output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=300).decode()
+        output = subprocess.check_output(cmd, shell=True, timeout=300).decode()
         print("LLAMA output:")
         print(output)
         sys.stdout.flush()
