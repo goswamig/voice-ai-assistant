@@ -1,8 +1,12 @@
 # Voice AI Assistant
+Pre-requisite: Build llama.cpp and whisper.cpp and download the models for them before running below commands. This doc covers that portion later.
+1) Run whisper server ./whisper.cpp/build/bin/whisper-server -m ./whisper.cpp/models/ggml-large-v3.bin in a terminal.
+2) Run llama server ./llama.cpp/build/bin/llama-server -m ./llama.cpp/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf -c 2048 --port 8081 
+2) Run python main.py in another terminal 
 
 ## TODO 
-### Make it interactive 
-### Make it work in ur own voice
+1) Current recoding is for 5 seconds make it as if user stops saying stop recording 
+2) Make it work in ur own voice
 
 ## Get API Keys:
 

@@ -4,6 +4,9 @@ import numpy as np
 import sounddevice as sd
 import wave
 import subprocess
+import time
+import requests
+import json
 
 # Configurations
 WHISPER_PATH = "./whisper.cpp/build/bin/whisper-cli"
@@ -12,6 +15,10 @@ LLAMA_PATH = "./llama.cpp/build/bin/llama-cli"
 LLAMA_MODEL = "./llama.cpp/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf"  # Best mix of speed & quality
 AUDIO_FILE = "recorded.wav"
 OUTPUT_AUDIO = "response.mp3"
+
+WHISPER_SERVER_URL = "http://127.0.0.1:8080/inference"  # URL of your Whisper server
+LLAMA_SERVER_URL = "http://127.0.0.1:8081/completion"  # URL of your Llama server
+
 
 # Function to Record Audio
 def record_audio(duration=5, sample_rate=16000):
@@ -27,49 +34,67 @@ def record_audio(duration=5, sample_rate=16000):
         wf.setframerate(sample_rate)
         wf.writeframes(audio.tobytes())
 
-# Function to Convert Speech to Text
-def speech_to_text():
-    cmd = f"{WHISPER_PATH} -m {WHISPER_MODEL} -f {AUDIO_FILE} -l en --output-txt --threads 10"
-    print("Executing Whisper command:")
-    print(cmd)
-    sys.stdout.flush()
-    subprocess.run(cmd, shell=True)
+# # Function to Convert Speech to Text
+# def speech_to_text():
+#     cmd = f"{WHISPER_PATH} -m {WHISPER_MODEL} -f {AUDIO_FILE} -l en --output-txt --threads 10"
+#     print("Executing Whisper command:")
+#     print(cmd)
+#     sys.stdout.flush()
+#     subprocess.run(cmd, shell=True)
     
-    txt_file = AUDIO_FILE + ".txt"
-    if os.path.exists(txt_file):
-        with open(txt_file, "r") as f:
-            transcription = f.read().strip()
-            return transcription
-    return ""
+#     txt_file = AUDIO_FILE + ".txt"
+#     if os.path.exists(txt_file):
+#         with open(txt_file, "r") as f:
+#             transcription = f.read().strip()
+#             return transcription
+#     return ""
+
+
+def speech_to_text():
+    with open(AUDIO_FILE, "rb") as audio_file:
+        files = {"file": (AUDIO_FILE, audio_file, "audio/wav")}  # Correct file field name
+        data = {"temperature": 0.0, "temperature_inc": 0.2, "response_format": "json"}  # Other parameters
+
+        try:
+            response = requests.post(WHISPER_SERVER_URL, files=files, data=data, timeout=300) # Include data parameters
+            response.raise_for_status()  # Check for HTTP errors
+            result = response.json()
+            if result and "text" in result:
+                transcription = result["text"].strip()
+                return transcription
+            else:
+                print("Unexpected response from Whisper server:", result)
+                return ""
+        except requests.exceptions.RequestException as e:
+            print(f"Error communicating with Whisper server: {e}")
+            return ""
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON response from Whisper server: {e}")
+            return ""
+
 
 # Function to Generate AI Response
 def generate_response(prompt):
-    # Use -no-cnv flag to disable conversation mode
-    cmd = f'{LLAMA_PATH} -m {LLAMA_MODEL} -p "{prompt}" --temp 0.7 --n-predict 200 --threads 10 -no-cnv'
-    print("Executing LLAMA command:")
-    print(cmd)
-    sys.stdout.flush()
+    headers = {"Content-Type": "application/json"}
+    data = {"prompt": prompt, "n_predict": 200}  # Adjust n_predict as needed
+
     try:
-        output = subprocess.check_output(cmd, shell=True, timeout=300).decode()
-        print("LLAMA output:")
-        print(output)
-        sys.stdout.flush()
-        # Remove performance logs and any debug text (if present)
-        if "llama_perf_" in output:
-            output = output.split("llama_perf_")[0].strip()
-        if "[end of text]" in output:
-            output = output.split("[end of text]")[0].strip()
-        return output
-    except subprocess.CalledProcessError as e:
-        error_msg = e.output.decode()
-        print("Error generating response:")
-        print(error_msg)
-        sys.stdout.flush()
+        response = requests.post(LLAMA_SERVER_URL, headers=headers, json=data, timeout=300)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        result = response.json()
+        if result and "content" in result:
+            response_text = result["content"].strip()
+            return response_text
+        else:
+            print("Unexpected response from LLaMa server:", result)
+            return "Sorry, I couldn't generate a response."
+    except requests.exceptions.RequestException as e:
+        print(f"Error communicating with LLaMa server: {e}")
         return "Sorry, I couldn't generate a response."
-    except subprocess.TimeoutExpired:
-        print("LLAMA command timed out.")
-        sys.stdout.flush()
-        return "Sorry, the response generation timed out."
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON response from LLaMa server: {e}")
+        return "Sorry, I couldn't generate a response."
+        
 
 # Function to Convert Text to Speech and Play It
 def text_to_speech(text):
