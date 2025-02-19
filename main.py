@@ -15,19 +15,71 @@ AUDIO_FILE = "recorded.wav"
 OUTPUT_AUDIO = "response.mp3"
 
 # Function to Record Audio
-def record_audio(duration=5, sample_rate=16000):
-    print("Recording...")
+def record_audio(
+    sample_rate=16000,
+    silence_threshold_db=-40,
+    silence_duration=3.0,
+    max_duration=60.0,
+    chunk_duration=0.5
+):
+    """
+    Records audio until silence is detected or max duration is reached.
+    
+    Args:
+        sample_rate (int): Audio sample rate.
+        silence_threshold_db (float): Silence threshold in decibels.
+        silence_duration (float): Seconds of silence to trigger stop.
+        max_duration (float): Maximum recording time in seconds.
+        chunk_duration (float): Duration of each audio chunk to analyze.
+    """
+    print("Recording... (Press Ctrl+C to stop early)")
     sys.stdout.flush()
-    audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype=np.int16)
-    sd.wait()
-    print("Recording complete.")
-    sys.stdout.flush()
+
+    chunk_size = int(chunk_duration * sample_rate)
+    recorded_chunks = []
+    last_sound_time = time.time()
+    start_time = time.time()
+
+    with sd.InputStream(samplerate=sample_rate, channels=1, dtype=np.int16) as stream:
+        while True:
+            current_time = time.time()
+            elapsed = current_time - start_time
+
+            # Stop if max duration reached
+            if elapsed >= max_duration:
+                print("Maximum recording duration reached.")
+                break
+
+            # Read audio chunk
+            data, _ = stream.read(chunk_size)
+            if data.size == 0:
+                continue
+
+            # Store audio data
+            recorded_chunks.append(data.flatten())
+
+            # Calculate RMS and convert to dBFS
+            samples = data.astype(np.float32) / 32768.0  # Normalize to [-1, 1]
+            rms = np.sqrt(np.mean(samples ** 2))
+            db = 20 * np.log10(rms) if rms > 0 else -np.inf
+
+            # Silence detection logic
+            if db < silence_threshold_db:
+                if (current_time - last_sound_time) >= silence_duration:
+                    print(f"Silence detected for {silence_duration} seconds.")
+                    break
+            else:
+                last_sound_time = current_time
+
+    # Combine and save audio
+    audio = np.concatenate(recorded_chunks, axis=0)
     with wave.open(AUDIO_FILE, 'wb') as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         wf.writeframes(audio.tobytes())
-
+    print(f"Recording saved to {AUDIO_FILE}")
+    sys.stdout.flush()
 
 def speech_to_text():
     with open(AUDIO_FILE, "rb") as audio_file:
