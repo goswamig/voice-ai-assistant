@@ -3,3 +3,5 @@ numpy
 requests
 wave
 edge-tts
+tortoise-tts
+nltk

@@ -7,12 +7,78 @@ import subprocess
 import time
 import requests
 import json
+from tortoise.api import TextToSpeech
+from tortoise.utils.audio import load_audio, load_voice, load_voices
+import re
+import nltk
+nltk.download('punkt')
+from nltk.tokenize import sent_tokenize
 
 # Configurations
 WHISPER_SERVER_URL = "http://127.0.0.1:8080/inference"  # URL of your Whisper server
 LLAMA_SERVER_URL = "http://127.0.0.1:8081/completion"  # URL of your Llama server
 AUDIO_FILE = "recorded.wav"
 OUTPUT_AUDIO = "response.mp3"
+VOICE_SAMPLES_DIR = "voice_samples"  # Directory to store your voice samples
+CONDITIONING_LATENTS = None  # Will store your voice characteristics
+
+# clone the voice 
+def setup_voice_clone():
+    """
+    Set up the voice cloning model using your voice samples.
+    Requires multiple short audio clips of your voice for better quality.
+    """
+    global CONDITIONING_LATENTS
+    
+    if not os.path.exists(VOICE_SAMPLES_DIR):
+        os.makedirs(VOICE_SAMPLES_DIR)
+        print(f"Created voice samples directory at {VOICE_SAMPLES_DIR}")
+        print("Please add 3-5 short WAV recordings of your voice (2-5 seconds each)")
+        print("Each file should be clear speech with minimal background noise")
+        return False
+    
+    try:
+        # Initialize Tortoise TTS
+        tts = TextToSpeech()
+        
+        # Load your voice samples
+        voice_samples = []
+        for file in os.listdir(VOICE_SAMPLES_DIR):
+            if file.endswith('.wav'):
+                sample_path = os.path.join(VOICE_SAMPLES_DIR, file)
+                audio = load_audio(sample_path, 22050)
+                voice_samples.append(audio)
+        
+        if not voice_samples:
+            print("No voice samples found. Please add WAV files to the voice_samples directory.")
+            return False
+        
+        # Generate voice conditioning latents
+        CONDITIONING_LATENTS = tts.get_conditioning_latents(voice_samples)
+        print("Voice clone model successfully created!")
+        return True
+        
+    except Exception as e:
+        print(f"Error setting up voice clone: {e}")
+        return False
+
+def split_into_sentences(text):
+    """Split text into sentences and further into chunks if sentences are too long."""
+    # First, split into sentences
+    sentences = sent_tokenize(text)
+    chunks = []
+    
+    for sentence in sentences:
+        # If sentence is too long, split it by punctuation
+        if len(sentence) > 150:
+            parts = re.split('[,;:]', sentence)
+            # Filter out empty parts and strip whitespace
+            parts = [p.strip() for p in parts if p.strip()]
+            chunks.extend(parts)
+        else:
+            chunks.append(sentence)
+    
+    return chunks
 
 # Function to Record Audio
 def record_audio(
@@ -127,27 +193,69 @@ def generate_response(prompt):
         return "Sorry, I couldn't generate a response."
 
 
-# Function to Convert Text to Speech and Play It
 def text_to_speech(text):
-    # Use --write-media instead of --out since edge-tts expects that argument.
-    cmd = [
-        "edge-tts",
-        "--text", text,
-        "--voice", "en-US-AvaNeural",
-        "--write-media", OUTPUT_AUDIO
-    ]
-    print("Executing TTS command:")
-    print(" ".join(cmd))
-    sys.stdout.flush()
-    try:
+    """Convert text to speech using your cloned voice, handling long responses."""
+    if CONDITIONING_LATENTS is None:
+        print("Voice clone not set up. Using default TTS...")
+        # Fallback to edge-tts
+        output_audio = "response.mp3"
+        cmd = [
+            "edge-tts",
+            "--text", text,
+            "--voice", "en-US-AvaNeural",
+            "--write-media", output_audio
+        ]
         subprocess.run(cmd, check=True)
-        subprocess.run(["afplay", OUTPUT_AUDIO], check=True)
+        subprocess.run(["afplay", output_audio], check=True)
+        return
+
+    try:
+        # Split the text into manageable chunks
+        chunks = split_into_sentences(text)
+        tts = TextToSpeech()
+        
+        # Process each chunk separately
+        for i, chunk in enumerate(chunks):
+            print(f"Processing chunk {i+1}/{len(chunks)}: {chunk}")
+            
+            # Generate speech for the chunk
+            output_file = f"chunk_{i}.wav"
+            gen_audio = tts.tts_with_preset(
+                chunk,
+                voice_samples=None,
+                conditioning_latents=CONDITIONING_LATENTS,
+                preset="fast"
+            )
+            
+            # Save the chunk
+            tts.save_audio(gen_audio, output_file)
+            
+            # Play the chunk
+            subprocess.run(["afplay", output_file], check=True)
+            
+            # Clean up the temporary file
+            os.remove(output_file)
+            
     except Exception as e:
-        print("Error in TTS:")
-        print(e)
+        print(f"Error in voice cloning TTS: {e}")
+        # Fallback to edge-tts if voice cloning fails
+        output_audio = "response.mp3"
+        cmd = [
+            "edge-tts",
+            "--text", text,
+            "--voice", "en-US-AvaNeural",
+            "--write-media", output_audio
+        ]
+        subprocess.run(cmd, check=True)
+        subprocess.run(["afplay", output_audio], check=True)
 
 # Main Assistant Loop
 def main_loop():
+    """Main assistant loop with voice cloning."""
+    # First, set up voice cloning
+    if not setup_voice_clone():
+        print("Voice cloning setup incomplete. Using default voice.")
+
     while True:
         try:
             record_audio()
