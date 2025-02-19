@@ -1,8 +1,5 @@
 sounddevice
 numpy
-pydub
 requests
-openai
-python-dotenv
-whispercpp
-llama-cpp-python
+wave
+edge-tts

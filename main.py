@@ -9,16 +9,10 @@ import requests
 import json
 
 # Configurations
-WHISPER_PATH = "./whisper.cpp/build/bin/whisper-cli"
-WHISPER_MODEL = "./whisper.cpp/models/ggml-large-v3.bin"  # More accurate model
-LLAMA_PATH = "./llama.cpp/build/bin/llama-cli"
-LLAMA_MODEL = "./llama.cpp/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf"  # Best mix of speed & quality
-AUDIO_FILE = "recorded.wav"
-OUTPUT_AUDIO = "response.mp3"
-
 WHISPER_SERVER_URL = "http://127.0.0.1:8080/inference"  # URL of your Whisper server
 LLAMA_SERVER_URL = "http://127.0.0.1:8081/completion"  # URL of your Llama server
-
+AUDIO_FILE = "recorded.wav"
+OUTPUT_AUDIO = "response.mp3"
 
 # Function to Record Audio
 def record_audio(duration=5, sample_rate=16000):
@@ -33,21 +27,6 @@ def record_audio(duration=5, sample_rate=16000):
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         wf.writeframes(audio.tobytes())
-
-# # Function to Convert Speech to Text
-# def speech_to_text():
-#     cmd = f"{WHISPER_PATH} -m {WHISPER_MODEL} -f {AUDIO_FILE} -l en --output-txt --threads 10"
-#     print("Executing Whisper command:")
-#     print(cmd)
-#     sys.stdout.flush()
-#     subprocess.run(cmd, shell=True)
-    
-#     txt_file = AUDIO_FILE + ".txt"
-#     if os.path.exists(txt_file):
-#         with open(txt_file, "r") as f:
-#             transcription = f.read().strip()
-#             return transcription
-#     return ""
 
 
 def speech_to_text():
@@ -94,7 +73,7 @@ def generate_response(prompt):
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON response from LLaMa server: {e}")
         return "Sorry, I couldn't generate a response."
-        
+
 
 # Function to Convert Text to Speech and Play It
 def text_to_speech(text):
