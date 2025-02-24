@@ -1,2 +1,18 @@
-Do voice cloning 
+Do voice cloning with F5-TTS
+ F5-TTS: https://github.com/SWivid/F5-TTS/discussions/143
+Dataset: 
+  wavs/ folder with audio
+  metadata.csv: converted_1sample| Hi, my name is Gautam. I'm 25 years old. I work at Amazon. I'm a software engineer.
+Finetuning:
+
+python3.10 /Users/gauta/projects/testTTS/F5-TTS/src/f5_tts/train/finetune_cli.py --exp_name F5TTS_Base --learning_rate 1e-05 --batch_size_per_gpu 1 --batch_size_type sample  --epochs 5 --keep_last_n_checkpoints -1 --dataset_name my_speak --finetune --tokenizer pinyin
+
+
+Inference:
+$ python3.10 /Users/gauta/projects/testTTS/F5-TTS/src/f5_tts/infer/infer_cli.py   -m "F5-TTS"   -p "/Users/gauta/projects/testTTS/F5-TTS/ckpts/my_speak/model_last.pt"   -r "/Users/gauta/projects/testTTS/F5-TTS/data/my_speak_pinyin/wavs/converted_1sample.wav"   -s "Hi, my name is Gautam. I'm 25 years old. I work at Amazon. I'm a software engineer."   -t "Hey I like elon musk, neurallink, twitter, Tesla, boring company. I love Grok"   -o "/Users/gauta/projects/testTTS/F5-TTS/ckpts/my_speak"   -w "output_grok_love.wav"
+
+~                                                                                                                                                                             
+~                                                                                            
 use that cloned voice for text to speech.
+
+Once you have the voice cloned model deploy that as a server. 
